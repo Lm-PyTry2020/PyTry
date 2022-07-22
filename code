@@ -1,0 +1,85 @@
+import time
+import uiautomation as auto
+import os
+
+# 工具：inspect.exe
+
+# 声明对象，指定微信这个对象
+wc = auto.WindowControl(Name='微信', ClassName='WeChatMainWndForPC')
+# 显示该窗口，置顶并最大化
+wc.Show()
+wc.SetTopmost(True)
+wc.Maximize()
+time.sleep(2)
+
+# 遍历会话列表并逐个打印信息
+# 设定所需要找的会话名SessionName
+# 设定会话列表SessionList
+# 获取会话列表的父组件的下边界值
+# 获取会话组件的高度
+# 设定循环状态
+n = 30
+SessionName = '文件传输助手'
+SessionList = []
+rect = wc.ListControl(Name='会话').GetParentControl().BoundingRectangle.bottom
+h = wc.ListControl(Name='会话').GetFirstChildControl().BoundingRectangle.height()
+GetSessionList_status = 'start'
+
+# 向上，保证置顶
+b = wc.ListControl(Name='会话').GetFirstChildControl().BoundingRectangle.bottom
+l = wc.ListControl(Name='会话').GetFirstChildControl().BoundingRectangle.left
+wc.ListControl(Name='会话').GetFirstChildControl().Click(l, b)
+auto.SendKeys('{UP 50}')
+
+# 循环获取会话列表
+# 下滑判定与点击操作
+# 先获取父组件的下边界值，当当前对象的下边界值大于父组件时，进行翻页操作
+# 鼠标下滑：auto.WheelDown(wheelTimes=1, waitTime=0.01)
+SessionItems = wc.ListControl(Name='会话').GetChildren()
+for i in range(n):
+    if GetSessionList_status == 'stop':
+        break
+    if wc.ListControl(Name='会话').GetLastChildControl().BoundingRectangle.bottom > rect - 2 * h:
+        auto.WheelDown(wheelTimes=1, waitTime=0.1)
+    for j in SessionItems:
+        name = j.Name
+        if name == SessionName:
+            j.Click()
+            GetSessionList_status = 'stop'
+            break
+        if name not in SessionList:
+            SessionList.append(name)
+    SessionItems = wc.ListControl(Name='会话').GetChildren()
+
+
+# 消息窗口拉至顶端，加载更多信息
+message_list_el = wc.ListControl(Name='消息')
+message_list_el.Click()
+auto.WheelUp(wheelTimes=100, waitTime=0.01)
+
+# 下载图片
+# 设定阻隔符Blocker，当某个消息内容为设定值时，从该值的位置开始获取信息
+# 设定地址FilePath，用于存放文件下载地址
+Blocker = '2022年7月12日 21:25'
+FilePath = r'C:\Users\Administrator\Desktop'
+
+# 获取消息列表
+message_list = message_list_el.GetChildren()
+
+# 保存图片
+for index, i in enumerate(message_list):
+    if i.Name == Blocker:
+        message_list = message_list[index:]
+        for j in message_list:
+            if j.Name == '[图片]':
+                while j.ButtonControl().BoundingRectangle.bottom > j.GetParentControl().BoundingRectangle.bottom:
+                    auto.WheelDown(wheelTimes=1, waitTime=0.01)
+                j.ButtonControl().RightClick()
+                auto.MenuItemControl(Name='另存为...').Click()
+                auto.PaneControl(ClassName='Address Band Root').Click(10,10)
+                auto.EditControl(Name='地址', ClassName='Edit').SendKeys(FilePath)
+                auto.ButtonControl(Name='保存(S)').Click()
+
+# 最小化
+wc.SetTopmost(False)
+wc.Minimize()
